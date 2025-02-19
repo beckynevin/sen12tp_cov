@@ -15,8 +15,8 @@ import xarray as xr
 from rasterio.windows import Window
 from torch.utils.data import Dataset, IterableDataset
 
-from sen12tp import utils
-from sen12tp.constants import BandNames
+from sen12tp_cov import utils
+from sen12tp_cov.constants import BandNames
 
 Patchsize = namedtuple("Patchsize", ["width", "height"])
 

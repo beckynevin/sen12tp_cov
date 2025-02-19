@@ -6,16 +6,16 @@ import torch
 import pytorch_lightning as pl
 import lightning.pytorch as plv2
 
-from sen12tp.dataset import Patchsize, SEN12TP, FilteredSEN12TP
-from sen12tp.constants import (
+from sen12tp_cov.dataset import Patchsize, SEN12TP, FilteredSEN12TP
+from sen12tp_cov.constants import (
     MIN_VV_VALUE,
     MIN_VH_VALUE,
     MIN_DEM_VALUE,
     MAX_DEM_VALUE,
     cgls_simplified_mapping,
 )
-from sen12tp.constants import BandNames
-from sen12tp.utils import default_clipping_transform
+from sen12tp_cov.constants import BandNames
+from sen12tp_cov.utils import default_clipping_transform
 
 '''
 # this was the original version before i modified it to 

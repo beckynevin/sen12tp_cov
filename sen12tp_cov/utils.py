@@ -3,9 +3,9 @@ import warnings
 import numpy as np
 import xarray as xr
 
-from sen12tp.constants import BandNames
+from sen12tp_cov.constants import BandNames
 
-from sen12tp.constants import (
+from sen12tp_cov.constants import (
     MIN_VV_VALUE,
     MIN_VH_VALUE,
     MIN_DEM_VALUE,
