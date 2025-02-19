@@ -433,7 +433,7 @@ class FilteredSEN12TP(IterableDataset):
         error_msg = "cloud_prob_threshold not between 0 and 100!"
         assert 0 < cloud_prob_threshold < 100, (error_msg, cloud_prob_threshold)
         self.cloud_probability_threshold = cloud_prob_threshold
-        total_pixel_count = np.product(self.ds.patch_size)
+        total_pixel_count = np.prod(self.ds.patch_size)
         self.cloud_pixel_count_threshold = (
             total_pixel_count / 1e3
         )  # allow only 1 per thousands cloud pixels
