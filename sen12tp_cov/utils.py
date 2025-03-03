@@ -13,6 +13,8 @@ from sen12tp_cov.constants import (
     cgls_simplified_mapping,
 )
 
+import matplotlib.pyplot as plt
+
 
 def calculate_ndvi(data: xr.DataArray) -> xr.DataArray:
     ndvi = calculate_normalized_difference_xarray(data, "B8", "B4", "ndvi")
@@ -78,6 +80,26 @@ def calculate_normalized_difference_xarray(
 
 
 def calculate_normalized_difference(arr1: np.ndarray, arr2: np.ndarray) -> np.ndarray:
+    """
+    Calculates the Normalized difference from two arrays. Use a small epsilon for numerical
+    stability avoiding division by zero. Also replace all NaN values in the output with 0.
+
+    ndiff = (arr1 - arr2) / (arr1 + arr1 + eps)
+    """
+    assert (
+        arr1.shape == arr2.shape
+    ), f"Shapes are not equal: {arr1.shape} != {arr2.shape}!"
+    assert isinstance(arr1, np.ndarray)
+    assert isinstance(arr2, np.ndarray)
+    eps = 1e-8  # for numerical stability
+    # calculating the NDVI can raise a warning, when dividing by 0
+    norm_diff = (arr1 - arr2) / (arr1 + arr2 + eps)
+    norm_diff = np.nan_to_num(norm_diff, nan=0)
+    return norm_diff
+
+'''
+# I was troubleshooting
+def calculate_normalized_difference(arr1: np.ndarray, arr2: np.ndarray) -> np.ndarray:
     """Calculates the Normalized difference from two arrays.
 
     ndiff = (arr1 - arr2) / (arr1 + arr1)
@@ -96,11 +118,28 @@ def calculate_normalized_difference(arr1: np.ndarray, arr2: np.ndarray) -> np.nd
         # value encountered in true_divide") was catched
         assert len(w) <= 1, f"There should at most 1 warning, not {len(w)}!"
         if len(w) == 1:
+            print("band1 min/max:", np.nanmin(arr1), np.nanmax(arr1))
+            print("band2 min/max:", np.nanmin(arr2), np.nanmax(arr2))
+            print("band1 unique values:", np.unique(arr1))
+            print("band2 unique values:", np.unique(arr2))
+            print("checking for nans", np.any(np.isnan(arr1)), np.any(np.isnan(arr2)))
+            print("warning", w)
+            # Save arr1 as an image
+            plt.imshow(arr1, cmap='gray')  # Choose the colormap based on your data
+            plt.colorbar()
+            plt.savefig('arr1_image.png', dpi=300)  # Save with high DPI for quality
+            plt.close()  # Close the plot to free memory
+            
+            # Save arr2 as an image
+            plt.imshow(arr2, cmap='gray')
+            plt.colorbar()
+            plt.savefig('arr2_image.png', dpi=300)
+            plt.close()
             assert issubclass(w[-1].category, RuntimeWarning)
-            assert "invalid value encountered in true_divide" in str(w[-1].message)
+            assert "invalid value encountered in true_divide" in w #str(w[-1].message)
     norm_diff = np.nan_to_num(norm_diff, nan=0)
     return norm_diff
-
+'''
 
 def default_clipping_transform(sample: xr.DataArray) -> xr.DataArray:
     """
