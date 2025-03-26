@@ -17,8 +17,6 @@ from sen12tp_cov.constants import (
 from sen12tp_cov.constants import BandNames
 from sen12tp_cov.utils import default_clipping_transform
 
-from collections import defaultdict
-
 
 '''
 # this was the original version before i modified it to 
@@ -95,29 +93,24 @@ def create_sen12tp_datasets(self):
         "stride": self.stride,
     }
 
-    # Load full training dataset
+    # Load full dataset
     sen12tp_train_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)
     sen12tp_test_ds = SEN12TP(self.dataset_dir / "test", **sen12tp_kwargs)
 
-    # Group patches by scene (assuming patches have a scene ID)
-    scene_to_patches = defaultdict(list)
-    for patch in sen12tp_train_ds.patches:
-        scene_id = patch.scene_id  # Assuming each patch has a `scene_id` attribute
-        scene_to_patches[scene_id].append(patch)
+    # Extract all patches
+    all_patches = sen12tp_train_ds.patches  
 
-    # Split scenes into train and validation
-    scenes = list(scene_to_patches.keys())
-    random.shuffle(scenes)
+    # Shuffle patches to randomize split
+    random.shuffle(all_patches)
 
-    val_size = int(len(scenes) * 0.11)  # Example: 230 validation scenes out of ~2093 total
-    val_scenes = set(scenes[:val_size])  # First N scenes for validation
-    train_scenes = set(scenes[val_size:])  # Remaining for training
+    # Define validation split ratio (e.g., 11% of total patches)
+    val_size = int(len(all_patches) * 0.11)
 
-    # Filter patches based on scene split
-    train_patches = [p for s in train_scenes for p in scene_to_patches[s]]
-    val_patches = [p for s in val_scenes for p in scene_to_patches[s]]
+    # Split patches into training and validation
+    val_patches = all_patches[:val_size]  
+    train_patches = all_patches[val_size:]  
 
-    # Create separate dataset instances
+    # Assign patches to datasets
     sen12tp_train_ds.patches = train_patches
     sen12tp_val_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)  # New dataset instance
     sen12tp_val_ds.patches = val_patches  # Assign only validation patches
