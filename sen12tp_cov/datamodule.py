@@ -98,7 +98,7 @@ def create_sen12tp_datasets(self):
     sen12tp_test_ds = SEN12TP(self.dataset_dir / "test", **sen12tp_kwargs)
 
     # Extract all patches
-    all_patches = sen12tp_train_ds.patches  
+    all_patches = sen12tp_train_ds.patches
 
     # Shuffle patches to randomize split
     random.shuffle(all_patches)
@@ -106,20 +106,29 @@ def create_sen12tp_datasets(self):
     # Define validation split ratio (e.g., 11% of total patches)
     val_size = int(len(all_patches) * 0.11)
 
-    # Track assigned patches using their file paths
-    assigned_patches = set()  
+    # Use a set to track assigned patch identifiers
+    assigned_patches = set()
     train_patches, val_patches = [], []
 
     for patch in all_patches:
-        # Extract unique identifiers (file paths)
-        patch_key = (str(patch[0]['s1']), str(patch[0]['s2']), patch[1], patch[2])
+        # Extract unique patch identifier
+        patch_key = (patch[0]['s1'].parent.name, patch[0]['s1'].stem)  
 
+        # If the patch is unique and we still need more validation samples, assign it
         if len(val_patches) < val_size and patch_key not in assigned_patches:
             val_patches.append(patch)
         else:
             train_patches.append(patch)
 
-        assigned_patches.add(patch_key)  # Mark as assigned
+        # Add to assigned patches set to avoid duplication
+        assigned_patches.add(patch_key)
+
+    # Ensure **NO overlaps** exist before assigning datasets
+    assert not set(
+        (p[0]['s1'].parent.name, p[0]['s1'].stem) for p in train_patches
+    ).intersection(set(
+        (p[0]['s1'].parent.name, p[0]['s1'].stem) for p in val_patches
+    )), "🚨 Overlap detected between train and validation sets!"
 
     # Assign patches to datasets
     sen12tp_train_ds.patches = train_patches
