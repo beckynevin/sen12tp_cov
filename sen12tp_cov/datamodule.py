@@ -106,9 +106,20 @@ def create_sen12tp_datasets(self):
     # Define validation split ratio (e.g., 11% of total patches)
     val_size = int(len(all_patches) * 0.11)
 
-    # Split patches into training and validation
-    val_patches = all_patches[:val_size]  
-    train_patches = all_patches[val_size:]  
+    # Track assigned patches using their file paths
+    assigned_patches = set()  
+    train_patches, val_patches = [], []
+
+    for patch in all_patches:
+        # Extract unique identifiers (file paths)
+        patch_key = (str(patch[0]['s1']), str(patch[0]['s2']), patch[1], patch[2])
+
+        if len(val_patches) < val_size and patch_key not in assigned_patches:
+            val_patches.append(patch)
+        else:
+            train_patches.append(patch)
+
+        assigned_patches.add(patch_key)  # Mark as assigned
 
     # Assign patches to datasets
     sen12tp_train_ds.patches = train_patches
