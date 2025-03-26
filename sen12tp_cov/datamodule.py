@@ -17,9 +17,14 @@ from sen12tp_cov.constants import (
 from sen12tp_cov.constants import BandNames
 from sen12tp_cov.utils import default_clipping_transform
 
+from collections import defaultdict
+
+
 '''
 # this was the original version before i modified it to 
 # create the validation set
+# this doesn't work becaues there is no longer a separate
+# validation set in the 
 def create_sen12tp_datasets(self):
     sen12tp_kwargs = {
         "patch_size": self.patch_size,
@@ -40,6 +45,9 @@ def create_sen12tp_datasets(self):
     self.sen12tp_test = FilteredSEN12TP(sen12tp_test_ds)
 '''
 
+'''
+# this was my original re-implementation
+# but i'm suspecting that its messing everything up
 def split_patches(patches, split_ratio=0.8):
     split_idx = int(len(patches) * split_ratio)
     return patches[:split_idx], patches[split_idx:]
@@ -69,6 +77,50 @@ def create_sen12tp_datasets(self):
     sen12tp_train_ds.patches = train_patches
     sen12tp_val_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)  # Create a new instance
     sen12tp_val_ds.patches = val_patches  # Assign the validation patches
+
+    # Assign datasets
+    self.sen12tp_train = FilteredSEN12TP(sen12tp_train_ds, shuffle=self.shuffle_train)
+    self.sen12tp_val = FilteredSEN12TP(sen12tp_val_ds)
+    self.sen12tp_test = FilteredSEN12TP(sen12tp_test_ds)
+'''
+
+def create_sen12tp_datasets(self):
+    sen12tp_kwargs = {
+        "patch_size": self.patch_size,
+        "transform": self.transform,
+        "model_targets": self.model_targets,
+        "clip_transform": self.clipping_method,
+        "model_inputs": self.model_inputs,
+        "end_transform": self.end_transform,
+        "stride": self.stride,
+    }
+
+    # Load full training dataset
+    sen12tp_train_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)
+    sen12tp_test_ds = SEN12TP(self.dataset_dir / "test", **sen12tp_kwargs)
+
+    # Group patches by scene (assuming patches have a scene ID)
+    scene_to_patches = defaultdict(list)
+    for patch in sen12tp_train_ds.patches:
+        scene_id = patch.scene_id  # Assuming each patch has a `scene_id` attribute
+        scene_to_patches[scene_id].append(patch)
+
+    # Split scenes into train and validation
+    scenes = list(scene_to_patches.keys())
+    random.shuffle(scenes)
+
+    val_size = int(len(scenes) * 0.11)  # Example: 230 validation scenes out of ~2093 total
+    val_scenes = set(scenes[:val_size])  # First N scenes for validation
+    train_scenes = set(scenes[val_size:])  # Remaining for training
+
+    # Filter patches based on scene split
+    train_patches = [p for s in train_scenes for p in scene_to_patches[s]]
+    val_patches = [p for s in val_scenes for p in scene_to_patches[s]]
+
+    # Create separate dataset instances
+    sen12tp_train_ds.patches = train_patches
+    sen12tp_val_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)  # New dataset instance
+    sen12tp_val_ds.patches = val_patches  # Assign only validation patches
 
     # Assign datasets
     self.sen12tp_train = FilteredSEN12TP(sen12tp_train_ds, shuffle=self.shuffle_train)
