@@ -46,6 +46,9 @@ def create_sen12tp_datasets(self):
 '''
 # this was my original re-implementation
 # but i'm suspecting that its messing everything up
+# because the models don't look like they're
+# that well trained
+
 def split_patches(patches, split_ratio=0.8):
     split_idx = int(len(patches) * split_ratio)
     return patches[:split_idx], patches[split_idx:]
@@ -81,8 +84,11 @@ def create_sen12tp_datasets(self):
     self.sen12tp_val = FilteredSEN12TP(sen12tp_val_ds)
     self.sen12tp_test = FilteredSEN12TP(sen12tp_test_ds)
 '''
-
+# This is an attempt to fix it to do what Thomas says
 def create_sen12tp_datasets(self):
+    from collections import defaultdict
+    import random
+
     sen12tp_kwargs = {
         "patch_size": self.patch_size,
         "transform": self.transform,
@@ -97,48 +103,55 @@ def create_sen12tp_datasets(self):
     sen12tp_train_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)
     sen12tp_test_ds = SEN12TP(self.dataset_dir / "test", **sen12tp_kwargs)
 
-    # Extract all patches
     all_patches = sen12tp_train_ds.patches
+    print(f"📦 Total patches loaded: {len(all_patches)}")
 
-    # Shuffle patches to randomize split
-    random.shuffle(all_patches)
-
-    # Define validation split ratio (e.g., 11% of total patches)
-    val_size = int(len(all_patches) * 0.11)
-
-    # Use a set to track assigned patch identifiers
-    assigned_patches = set()
-    train_patches, val_patches = [], []
-
+    # Group patches by scene
+    scene_to_patches = defaultdict(list)
     for patch in all_patches:
-        # Extract unique patch identifier
-        patch_key = (patch[0]['s1'].parent.name, patch[0]['s1'].stem)  
+        scene_name = patch[0]['s1'].parent.name  # or whatever uniquely identifies the scene
+        scene_to_patches[scene_name].append(patch)
 
-        # If the patch is unique and we still need more validation samples, assign it
-        if len(val_patches) < val_size and patch_key not in assigned_patches:
-            val_patches.append(patch)
+    print(f"🗺️ Total unique scenes: {len(scene_to_patches)}")
+
+    # Split scenes into train and val
+    all_scenes = list(scene_to_patches.keys())
+    random.shuffle(all_scenes)
+    val_scene_count = int(len(all_scenes) * 0.11)
+
+    val_scenes = set(all_scenes[:val_scene_count])
+    train_scenes = set(all_scenes[val_scene_count:])
+
+    print(f"📚 Training scenes: {len(train_scenes)}")
+    print(f"🧪 Validation scenes: {len(val_scenes)}")
+
+    # Assign patches based on scene split
+    train_patches = []
+    val_patches = []
+
+    for scene, patches in scene_to_patches.items():
+        if scene in val_scenes:
+            val_patches.extend(patches)
         else:
-            train_patches.append(patch)
+            train_patches.extend(patches)
 
-        # Add to assigned patches set to avoid duplication
-        assigned_patches.add(patch_key)
+    print(f"✅ Final train patches: {len(train_patches)}")
+    print(f"✅ Final val patches: {len(val_patches)}")
 
-    # Ensure **NO overlaps** exist before assigning datasets
-    assert not set(
-        (p[0]['s1'].parent.name, p[0]['s1'].stem) for p in train_patches
-    ).intersection(set(
-        (p[0]['s1'].parent.name, p[0]['s1'].stem) for p in val_patches
-    )), "🚨 Overlap detected between train and validation sets!"
+    # Double-check: ensure no scene overlap
+    assert not (train_scenes & val_scenes), "🚨 Scene overlap between train and val!"
+    assert all(p[0]['s1'].parent.name in train_scenes for p in train_patches)
+    assert all(p[0]['s1'].parent.name in val_scenes for p in val_patches)
 
-    # Assign patches to datasets
+    # Assign patches to dataset instances
     sen12tp_train_ds.patches = train_patches
-    sen12tp_val_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)  # New dataset instance
-    sen12tp_val_ds.patches = val_patches  # Assign only validation patches
+    sen12tp_val_ds = SEN12TP(self.dataset_dir / "train", **sen12tp_kwargs)
+    sen12tp_val_ds.patches = val_patches
 
-    # Assign datasets
     self.sen12tp_train = FilteredSEN12TP(sen12tp_train_ds, shuffle=self.shuffle_train)
     self.sen12tp_val = FilteredSEN12TP(sen12tp_val_ds)
     self.sen12tp_test = FilteredSEN12TP(sen12tp_test_ds)
+
 
 
 
